@@ -1,0 +1,2 @@
+class Aviario:
+    pass

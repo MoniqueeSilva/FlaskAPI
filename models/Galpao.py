@@ -1,0 +1,2 @@
+class Galpao:
+    pass
