@@ -1,32 +1,9 @@
-from flask import Flask, jsonify
-from models.Avicultor import Avicultor
 import sqlite3
+from flask import request
 
-DATABASE_NAME = "avicola.db"
-
-app = Flask(__name__)
-
-avicultor1 = Avicultor("João Silva", "1980-05-12", "123.456.789-00", "CAF001")
-avicultor2 = Avicultor("Maria Oliveira", "1975-11-30",
-                       "987.654.321-11", "CAF002")
-avicultor3 = Avicultor("Carlos Santos", "1990-02-20",
-                       "111.222.333-44", "CAF003")
-avicultor4 = Avicultor("Ana Costa", "1985-07-18", "555.666.777-88", "CAF004")
-avicultor5 = Avicultor("Pedro Lima", "1978-09-05", "999.888.777-66", "CAF005")
-avicultor6 = Avicultor("Luciana Pereira", "1992-03-15",
-                       "444.333.222-11", "CAF006")
-avicultor7 = Avicultor("Rafael Gomes", "1983-12-25",
-                       "222.111.333-55", "CAF007")
-avicultor8 = Avicultor("Beatriz Almeida", "1995-06-10",
-                       "666.555.444-33", "CAF008")
-avicultor9 = Avicultor("Thiago Rocha", "1988-01-02",
-                       "777.888.999-00", "CAF009")
-avicultor10 = Avicultor("Carla Mendes", "1991-08-22",
-                        "333.444.555-66", "CAF010")
-
-# Exemplo de como transformar cada instância em dicionário
-avicultores = [avicultor1, avicultor2, avicultor3, avicultor4, avicultor5,
-               avicultor6, avicultor7, avicultor8, avicultor9, avicultor10]
+from models.Avicultor import Avicultor
+from helpers.application import app
+from helpers.database import get_conn
 
 
 @app.get("/")
@@ -41,25 +18,29 @@ def healthCheck():
 
 @app.get("/avicultores")
 def getAvicultores():
-    avicultoresDict = []
-
+    avicultores = []
     # DB
     conn = None
     try:
-        # 1 - Abrir a conexão
-        conn = sqlite3.connect(DATABASE_NAME)
+        conn = get_conn()
 
         # 2 - Recuperar o cursor
         cursor = conn.cursor()
 
         # 3 - Preparar a consultar: query | statement
-        cursor.execute("select * from tb_avicultor")
+        cursor.execute("select * from tb_avicultores")
 
         # 4.1 - Iterar nos resultados: resultset (fetchall, fecthone)
-        # 4.2 - Confirmar operação.
+        rows = cursor.fetchall()
 
-        for item in avicultores:
-            avicultoresDict.append(item.toDict())
+        for row in rows:
+            id = row[0]
+            nome = row[1]
+            nascimento = row[2]
+            cpf = row[3]
+            caf = row[4]
+            avicultor = Avicultor(id, nome, nascimento, cpf, caf)
+            avicultores.append(avicultor.toDict())
 
     except sqlite3.Error as e:
         print(e)
@@ -68,12 +49,38 @@ def getAvicultores():
         if conn:
             conn.close()
 
-    return avicultoresDict, 200
+    return avicultores, 200
 
 
 @app.post("/avicultores")
 def postAvicultores():
-    pass
+
+    avicultorJson = request.get_json()
+
+    # DB
+    conn = None
+    try:
+        # 1 - Abrir a conexão
+        conn = get_conn()
+
+        # 2 - Recuperar o cursor
+        cursor = conn.cursor()
+
+        # 3 - Preparar a consultar: query | statement
+        cursor.execute(
+            "INSERT INTO tb_avicultores(nome, nascimento, cpf, caf) VALUES(?, ?, ?, ?)", (avicultorJson["nome"], avicultorJson["nascimento"], avicultorJson["cpf"], avicultorJson["caf"]))
+
+        # 4.2 - Confirmar operação.
+        conn.commit()
+
+    except sqlite3.Error as e:
+        print(e)
+    finally:
+        # 5 - Fechar a conexão
+        if conn:
+            conn.close()
+
+    return avicultorJson, 200
 
 
 @app.put("/avicultores")
