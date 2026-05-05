@@ -1,7 +1,8 @@
 import sqlite3
-from flask import request
+from flask import request, jsonify
+from marshmallow import ValidationError
 
-from models.Avicultor import Avicultor
+from models.Avicultor import Avicultor, AvicultorSchema
 from helpers.application import app
 from helpers.database import get_conn
 
@@ -54,12 +55,13 @@ def getAvicultores():
 
 @app.post("/avicultores")
 def postAvicultores():
-
     avicultorJson = request.get_json()
-
     # DB
     conn = None
     try:
+        avicultorSchema = AvicultorSchema()
+        avicultorData = avicultorSchema.load(avicultorJson)
+
         # 1 - Abrir a conexão
         conn = get_conn()
 
@@ -68,13 +70,14 @@ def postAvicultores():
 
         # 3 - Preparar a consultar: query | statement
         cursor.execute(
-            "INSERT INTO tb_avicultores(nome, nascimento, cpf, caf) VALUES(?, ?, ?, ?)", (avicultorJson["nome"], avicultorJson["nascimento"], avicultorJson["cpf"], avicultorJson["caf"]))
+            "INSERT INTO tb_avicultores(nome, nascimento, cpf, caf) VALUES(?, ?, ?, ?)", (avicultorData["nome"], avicultorData["nascimento"], avicultorData["cpf"], avicultorData["caf"]))
 
         # 4.2 - Confirmar operação.
         conn.commit()
-
     except sqlite3.Error as e:
         print(e)
+    except ValidationError as err:
+        return jsonify(err.messages), 400
     finally:
         # 5 - Fechar a conexão
         if conn:

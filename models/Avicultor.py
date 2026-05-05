@@ -14,7 +14,9 @@ class Avicultor():
 
 
 class AvicultorSchema(Schema):
-    nome = fields.Str(required=True)
+    nome = fields.Str(required=True, error_messages={
+                      "required": "Adicione um nome."})
     nascimento = fields.Date(required=True)
-    cpf = fields.Str(required=True, validate=validate.Length(max=11))
+    cpf = fields.Str(required=True, validate=validate.Length(
+        max=11, error="Tamanho do CPF inválido."), error_messages={"required": "Adicione um CPF.", "invalid": "Valor inválido."})
     caf = fields.Str(required=True)
