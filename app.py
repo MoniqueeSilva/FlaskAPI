@@ -8,6 +8,16 @@ app = Flask(__name__) # Cria a instância da aplicação Flask
 ARQUIVO = "avicultores.json" # Nome do arquivo JSON que serve como BD para armazenar os avicultores
 
 @app.get("/") # Define uma rota GET para o caminho raiz "/"
+import sqlite3
+from flask import request, jsonify
+from marshmallow import ValidationError
+
+from models.Avicultor import Avicultor, AvicultorSchema
+from helpers.application import app
+from helpers.database import get_conn
+
+
+@app.get("/")
 def index():
     # Retorna uma string JSON indicando a versão da API e o status HTTP 200 (OK)
     return '{"versao":"1.0.1"}', 200
@@ -25,6 +35,38 @@ def getAvicultores():
     if not os.path.exists(ARQUIVO):
         # Retorna uma lista vazia, se não houver dados
         return [], 200
+    avicultores = []
+    # DB
+    conn = None
+    try:
+        conn = get_conn()
+
+        # 2 - Recuperar o cursor
+        cursor = conn.cursor()
+
+        # 3 - Preparar a consultar: query | statement
+        cursor.execute("select * from tb_avicultores")
+
+        # 4.1 - Iterar nos resultados: resultset (fetchall, fecthone)
+        rows = cursor.fetchall()
+
+        for row in rows:
+            id = row[0]
+            nome = row[1]
+            nascimento = row[2]
+            cpf = row[3]
+            caf = row[4]
+            avicultor = Avicultor(id, nome, nascimento, cpf, caf)
+            avicultores.append(avicultor.toDict())
+
+    except sqlite3.Error as e:
+        print(e)
+    finally:
+        # 5 - Fechar a conexão
+        if conn:
+            conn.close()
+
+    return avicultores, 200
 
     # Abre o arquivo em modo leitura ("r")
     with open(ARQUIVO, "r") as f:
@@ -46,6 +88,35 @@ def postAvicultores():
         cpf=corpo.get("cpf"),
         caf=corpo.get("caf")
     )
+    avicultorJson = request.get_json()
+    # DB
+    conn = None
+    try:
+        avicultorSchema = AvicultorSchema()
+        avicultorData = avicultorSchema.load(avicultorJson)
+
+        # 1 - Abrir a conexão
+        conn = get_conn()
+
+        # 2 - Recuperar o cursor
+        cursor = conn.cursor()
+
+        # 3 - Preparar a consultar: query | statement
+        cursor.execute(
+            "INSERT INTO tb_avicultores(nome, nascimento, cpf, caf) VALUES(?, ?, ?, ?)", (avicultorData["nome"], avicultorData["nascimento"], avicultorData["cpf"], avicultorData["caf"]))
+
+        # 4.2 - Confirmar operação.
+        conn.commit()
+    except sqlite3.Error as e:
+        print(e)
+    except ValidationError as err:
+        return jsonify(err.messages), 400
+    finally:
+        # 5 - Fechar a conexão
+        if conn:
+            conn.close()
+
+    return avicultorJson, 200
 
     # Inicializa uma lista vazia para armazenar os avicultores existentes
     lista = []
